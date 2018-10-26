@@ -54,7 +54,7 @@ struct pathState {
 /* ----- Utility functions ----- */
 /**********************************/
 
-#if 1
+#if 0
 /*
  * Random integer x such that 0 <= x <= n_max
  * Status: FINAL
