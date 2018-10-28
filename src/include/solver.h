@@ -1,6 +1,6 @@
-/* nqueens.h
+/* solver.c
  *
- * (C) 2018 Eva Tuba <etuba@ieee.org> and Carlos M. Fonseca <cmfonsec@dei.uc.pt>
+ * (C) 2018 Carlos M. Fonseca <cmfonsec@dei.uc.pt>
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,9 +19,25 @@
 
 #include "problem.h"
 
-/* This header file contains all problem dependent definitions */
+/* This header file contains all solver independent definitions */
 
-/* Problem-specific instantiation */
-struct problem *newProblem(int n);
+/* Data structure */
+struct solverState;
 
+/* Solver instantiation - function arguments are purposely left unspecified,
+ * but they should include a problem instance
+ */
+struct solverState *newSolver();
+
+/* Memory management */
+void freeSolver(struct solverState *ss);
+
+/* I/O */
+void printSolverState(struct solverState *ss);
+
+/* State iterator */
+struct solverState *nextSolverState(struct solverState *ss);
+
+/* State inspection */
+struct solution *getSolverSolution(struct solverState *ss);
 

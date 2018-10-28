@@ -118,7 +118,7 @@ static void swap(int *data, int i, int j) {
  *   Should just take an integer as an argument.
  *   Needs error checking
  */
-
+#if 0
 struct problem *newProblem(const char *filename) {
     struct problem *p = NULL;
     FILE *infile;
@@ -136,6 +136,17 @@ struct problem *newProblem(const char *filename) {
         fprintf(stderr, "Cannot open file %s\n", filename);
     return p;
 }
+#else
+struct problem *newProblem(int n) {
+    struct problem *p = NULL;
+    if (n > 0) {
+        p = (struct problem*) malloc(sizeof (struct problem));
+        p->n = n;
+    } else
+        fprintf(stderr, "Invalid board size: %d\n", n);
+    return p;
+}
+#endif
 
 /*****************************/
 /* ----- API functions ----- */

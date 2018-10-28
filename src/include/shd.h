@@ -1,6 +1,6 @@
-/* nqueens.h
+/* shd.h
  *
- * (C) 2018 Eva Tuba <etuba@ieee.org> and Carlos M. Fonseca <cmfonsec@dei.uc.pt>
+ * (C) 2018 Carlos M. Fonseca <cmfonsec@dei.uc.pt>
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,11 +17,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#include "problem.h"
+#include "solver.h"
 
-/* This header file contains all problem dependent definitions */
-
-/* Problem-specific instantiation */
-struct problem *newProblem(int n);
-
+struct solverState *newSolver(struct problem *p);
 
