@@ -49,7 +49,7 @@ static int cmp_doublep(const void *a, const void *b) {
         return 0;
 }
 
-void ranking(double *fitness, double **aux, double *cost, double sp, int n) {
+static void ranking(double *fitness, double **aux, double *cost, double sp, int n) {
     int i, j, k;
     double num, den;
     for (i = 0; i < n; i++)
@@ -67,7 +67,7 @@ void ranking(double *fitness, double **aux, double *cost, double sp, int n) {
     }
 }
 
-void sus(struct solution **o, struct solution **p, const double *f, int nsel, int n) {
+static void sus(struct solution **o, struct solution **p, const double *f, int nsel, int n) {
     struct solution *tmp;
     double x, cumfit, totfit = 0.0;
     int i, j, last_i;
@@ -107,7 +107,7 @@ void sus(struct solution **o, struct solution **p, const double *f, int nsel, in
 }
 
 /* Single step mutation (in place) */
-void single_step_mutation(struct solution **pop, int n, double Pm, struct move *tmpmove) {
+static void single_step_mutation(struct solution **pop, int n, double Pm, struct move *tmpmove) {
     int i;
     for (i = 0; i < n; i++)
         if (gsl_rng_uniform(rng) < Pm) {
@@ -117,7 +117,7 @@ void single_step_mutation(struct solution **pop, int n, double Pm, struct move *
 }
 
 /* Standard mutation (in place) */
-void standard_mutation(struct solution **pop, int n, double Pm, struct move *tmpmove, struct pathState *tmppath) {
+static void standard_mutation(struct solution **pop, int n, double Pm, struct move *tmpmove, struct pathState *tmppath) {
     double pm;
     int i, j, k;
     for (i = 0; i < n; i++) {
@@ -133,7 +133,7 @@ void standard_mutation(struct solution **pop, int n, double Pm, struct move *tmp
 }
 
 /* Geometric recombination (in place) */
-void geometric_recombination(struct solution **pop, int n, double Px, struct move *tmpmove, struct pathState *tmppath) {
+static void geometric_recombination(struct solution **pop, int n, double Px, struct move *tmpmove, struct pathState *tmppath) {
     struct solution *tmpsol;
     int i, k;
     tmpsol = pop[n-1];
