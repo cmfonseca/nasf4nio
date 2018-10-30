@@ -29,9 +29,12 @@ struct problem {
 struct solution {
     struct problem *prob;
     int *data;
+    int *olddata;
+    int *mod;       /* positions modified by moves */
+    int *modi;      /* inverse permutation of mod */
+    int nmod;       /* no. of positions modified since last evaluation */
     int n;
     int objvalue;
-    int stale;
 };
 
 struct move {
@@ -162,6 +165,9 @@ struct solution *allocSolution(struct problem *p) {
     struct solution *s = malloc(sizeof (struct solution));
     s->prob = p;
     s->data = malloc(p->n * sizeof (int));
+    s->olddata = malloc(p->n * sizeof (int));
+    s->mod = malloc(p->n * sizeof (int));
+    s->modi = malloc(p->n * sizeof (int));
     s->n = p->n;
     return s;
 }
@@ -205,6 +211,9 @@ void freeProblem(struct problem *p) {
  */
 void freeSolution(struct solution *s) {
     free(s->data);
+    free(s->olddata);
+    free(s->mod);
+    free(s->modi);
     free(s);
 }
 
@@ -240,6 +249,14 @@ void printSolution(struct solution *s) {
     printf("%d-Queens solution\n  p:", s->n);
     for(i = 0; i < s->n; i++)
         printf(" %d", s->data[i]);
+#if 0
+    printf("\n  mod :");
+    for(i = 0; i < s->n; i++)
+        printf(" %d", s->mod[i]);
+    printf("\n  modi:");
+    for(i = 0; i < s->n; i++)
+        printf(" %d", s->modi[i]);
+#endif
     printf("\n");
 }
 
@@ -270,13 +287,15 @@ void printPathState(struct pathState *ps) {
 /*
  * Generate solutions uniformly at random
  * Status: CHECK
- * Notes:
- *   are the both, eval and stale, needed?
  */
 struct solution *randomSolution(struct solution *s) {
     /* solution s must have been allocated with allocSolution() */
+    int i;
     randperm(s->data, s->n);
-    s->stale = 1;    /* Not evaluated yet */
+    /* Solution not evaluated yet */
+    for (i = 0; i < s->n; i++)
+        s->mod[i] = s->modi[i] = i;
+    s->nmod = s->n;
     return s;
 }
 
@@ -286,17 +305,42 @@ struct solution *randomSolution(struct solution *s) {
  * Generate solutions uniformly at random
  * Status: INTERIM
  * Notes:
- *   Incremental evaluation still to be implemented.
+ *   Implements incremental evaluation for multiple moves
  */
 double getObjectiveValue(struct solution *s) {
-    if (s->stale == 1) {
-        int i, j, n = s->n, att = 0;
+    int i, j, n = s->n, att, *mod, nmod = s->nmod;
+    if (nmod > .28*n) { /* full evaluation threshold to be fine-tuned experimentally */
+        att = 0;
+        for (i = 0; i < n-1; i++)
+            for (j = i+1; j < n; j++)
+                att += (j - i == abs(s->data[i] - s->data[j]));
+        s->objvalue = att;
+        memcpy(s->olddata, s->data, n * sizeof (int));
+        s->nmod = 0;
+    } else if (nmod >= 1) { /* incremental evaluation */
+        att = s->objvalue;
+        mod = s->mod;
+        for (i = 0; i < nmod-1; i++)
+            for (j = i+1; j < nmod; j++)
+                att += (abs(mod[j] - mod[i]) == abs(s->data[mod[i]] - s->data[mod[j]])) -
+                    (abs(mod[j] - mod[i]) == abs(s->olddata[mod[i]] - s->olddata[mod[j]]));
+        for (i = 0; i < nmod; i++)
+            for (j = nmod; j < n; j++)
+                att += (abs(mod[j] - mod[i]) == abs(s->data[mod[i]] - s->data[mod[j]])) -
+                    (abs(mod[j] - mod[i]) == abs(s->olddata[mod[i]] - s->olddata[mod[j]]));
+        s->objvalue = att;
+        memcpy(s->olddata, s->data, n * sizeof (int));
+        s->nmod = 0;
+#if 0
+        /* for testing */
+        att = 0;
         for (i = 0; i < n-1; i++)
             for (j = i+1; j < n; j++)
                 if (j - i == abs(s->data[i] - s->data[j]))
                     att++;
-        s->objvalue = att;
-        s->stale = 0;
+        printf("incremental = %d, full = %d, diff = %d\n", s->objvalue, att, s->objvalue-att);
+
+#endif
     }
     return (double)s->objvalue;
 }
@@ -306,8 +350,11 @@ struct solution *copySolution(struct solution *dest, const struct solution *src)
     dest->prob = src->prob;
     dest->n = src->n;
     memcpy(dest->data, src->data, src->n * sizeof (int));
+    memcpy(dest->olddata, src->olddata, src->n * sizeof (int));
+    memcpy(dest->mod, src->mod, src->n * sizeof (int));
+    memcpy(dest->modi, src->modi, src->n * sizeof (int));
+    dest->nmod = src->nmod;
     dest->objvalue = src->objvalue;
-    dest->stale = src->stale;
     return dest;
 }
 
@@ -322,7 +369,16 @@ struct solution *applyMove(struct solution *s, const struct move *v) {
     if (i == j)     /* do nothing */
         return s;
     swap(s->data, i, j);
-    s->stale = 1;
+    if (s->modi[i] >= s->nmod) {
+        swap(s->mod, s->modi[i], s->nmod);
+        swap(s->modi, i, s->mod[s->modi[i]]);
+        s->nmod++;
+    }
+    if (s->modi[j] >= s->nmod) {
+        swap(s->mod, s->modi[j], s->nmod);
+        swap(s->modi, j, s->mod[s->modi[j]]);
+        s->nmod++;
+    }
     return s;
 }
 
