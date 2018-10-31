@@ -47,26 +47,28 @@ int main(int argc, char **argv) {
 
     /* Problem and solver instantiation */
     p = newProblem(board_size);
-    ss = newSolver(p);
+    if (p != NULL) {
+        ss = newSolver(p);
 
-    /* Run */
-    mincost = getObjectiveValue(getSolverSolution(ss));
-    printf("iter = 0, obj = %.0f\n", mincost);
-    for (i = 0; mincost > 0 && i < max_iter; i++) {
-        nextSolverState(ss);
-        cost = getObjectiveValue(getSolverSolution(ss));
-        if (cost < mincost) {
-            mincost = cost;
-            printf("iter = %d, obj = %.0f\n", i+1, mincost);
+        /* Run */
+        mincost = getObjectiveValue(getSolverSolution(ss));
+        printf("iter = 0, obj = %.0f\n", mincost);
+        for (i = 0; mincost > 0 && i < max_iter; i++) {
+            nextSolverState(ss);
+            cost = getObjectiveValue(getSolverSolution(ss));
+            if (cost < mincost) {
+                mincost = cost;
+                printf("iter = %d, obj = %.0f\n", i+1, mincost);
+            }
         }
+
+        /* Report result */
+        printSolution(getSolverSolution(ss));
+
+        /* Clean up */
+        freeSolver(ss);
+        freeProblem(p);
     }
-
-    /* Report result */
-    printSolution(getSolverSolution(ss));
-
-    /* Clean up */
-    freeSolver(ss);
-    freeProblem(p);
     gsl_rng_free(rng);
     return 0;
 }
