@@ -22,7 +22,7 @@ all:
 	@$(MAKE) -C solver
 	@$(MAKE) -C nqueens
 	@$(MAKE) -C flowshop
-	@$(MAKE) -C knpasack
+	@$(MAKE) -C knapsack
 
 clean:
 	@$(MAKE) -C solver clean
