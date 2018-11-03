@@ -59,7 +59,7 @@ int main(int argc, char **argv) {
         /* Run */
         mincost = getObjectiveValue(getSolverSolution(ss));
         printf("iter = 0, obj = %.0f\n", mincost);
-        for (i = 0; mincost > 0 && i < max_iter; i++) {
+        for (i = 0; i < max_iter; i++) {
             nextSolverState(ss);
             cost = getObjectiveValue(getSolverSolution(ss));
             if (cost < mincost) {
