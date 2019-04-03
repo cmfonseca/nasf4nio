@@ -23,7 +23,7 @@ OPT = -O3
 CFLAGS = -I$(IDIR)
 PDEPS = $(IDIR)/problem.h
 SDEPS = $(IDIR)/solver.h
-LIBS = -lgsl -lblas -lm
+LIBS = -lgsl -lgslcblas -lm
 
 .PHONY: all clean debug
 
