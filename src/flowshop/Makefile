@@ -35,11 +35,14 @@ clean:
 debug:
 	@$(MAKE) OPT=-g
 
-flowshop-shd: flowshop-shd.o flowshop.o
-	$(CC) -o $@ $(CFLAGS) $(OPT) $^ $(SDIR)/shd.o $(LIBS)
+flowshop-shd: flowshop-shd.o flowshop.o  $(SDIR)/shd.o
+	$(CC) -o $@ $(CFLAGS) $(OPT) $^ $(LIBS)
 
-flowshop-sga: flowshop-sga.o flowshop.o
-	$(CC) -o $@ $(CFLAGS) $(OPT) $^ $(SDIR)/sga.o $(LIBS)
+flowshop-sga: flowshop-sga.o flowshop.o $(SDIR)/sga.o
+	$(CC) -o $@ $(CFLAGS) $(OPT) $^ $(LIBS)
+
+flowshop-ils: flowshop-ils.o flowshop.o $(SDIR)/ils.o
+	$(CC) -o $@ $(CFLAGS) $(OPT) $^ $(LIBS)
 
 %.o: %.c
 	$(CC) -c -o $@ $(CFLAGS) $(OPT) $<
@@ -47,4 +50,5 @@ flowshop-sga: flowshop-sga.o flowshop.o
 flowshop.o: flowshop.c flowshop.h $(PDEPS)
 flowshop-shd.o: flowshop-shd.c flowshop.h $(PDEPS) $(IDIR)/shd.h $(SDEPS)
 flowshop-sga.o: flowshop-sga.c flowshop.h $(PDEPS) $(IDIR)/sga.h $(SDEPS)
+flowshop-ils.o: flowshop-ils.c flowshop.h $(PDEPS) $(IDIR)/ils.h $(SDEPS)
 

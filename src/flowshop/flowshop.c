@@ -201,7 +201,7 @@ struct problem *newProblem(const char *filename) {
             p->n = n;
             p->m = m;
         } else
-            fprintf(stderr, "Invalid knapsack instance %s\n", filename);
+            fprintf(stderr, "Invalid flowshop instance %s\n", filename);
         fclose(infile);
     } else
         fprintf(stderr, "Cannot open file %s\n", filename);
@@ -358,7 +358,7 @@ struct solution *randomSolution(struct solution *s) {
 /* Solution inspection */
 
 /*
- * Generate solutions uniformly at random
+ * Produce the objective value of a solution
  * Status: FINAL
  * Notes:
  *   Supports incremental evaluation by makespan()
@@ -582,4 +582,7 @@ int getPathLength(const struct pathState *ps) {
     return ps->n - ps->in_order;
 }
 
+int getNeighbourhoodSize(struct solution *s) {
+    return (s->n-1)*(s->n-1);
+}
 
