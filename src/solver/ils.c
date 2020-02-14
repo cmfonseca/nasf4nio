@@ -1,6 +1,6 @@
-/* shd.c
+/* ils.c
  *
- * (C) 2018 Carlos M. Fonseca <cmfonsec@dei.uc.pt>
+ * (C) 2019 Carlos M. Fonseca <cmfonsec@dei.uc.pt>
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 3, as
@@ -18,45 +18,73 @@
 
 #include <stdlib.h>
 #include <gsl/gsl_rng.h>
-#include "shd.h"
+#include "ils.h"
 
 extern gsl_rng *rng;    /* The single rng instance used by the whole code */
 
 struct solverState {
     struct problem *p;
-    struct solution *s;
+    struct solution *s0, *s1;
     struct move *v;
+    int kick_steps;
 };
 
 struct solverState *newSolver(struct problem *p) {
     struct solverState *ss;
     ss = (struct solverState *) malloc(sizeof (struct solverState));
     ss->p = p;
-    ss->s = allocSolution(p);
+    ss->s0 = allocSolution(p);
+    ss->s1 = allocSolution(p);
     ss->v = allocMove(p);
-    randomSolution(ss->s);
+    randomSolution(ss->s0);
+    copySolution(ss->s1, ss->s0);
+    /* default parameters */
+    ss->kick_steps = 3;
     return ss;
 }
 
 void freeSolver(struct solverState *ss) {
-    freeSolution(ss->s);
+    freeSolution(ss->s0);
+    freeSolution(ss->s1);
     freeMove(ss->v);
     free(ss);
 }
 
 struct solverState *nextSolverState(struct solverState *ss) {
-    randomMove(ss->v, ss->s);
-    if (getObjectiveIncrement(ss->v, ss->s) <= 0) {
-        applyMove(ss->s, ss->v);
+    struct solution *tmp;
+    if (randomMoveWOR(ss->v, ss->s1)) {
+        if (getObjectiveIncrement(ss->v, ss->s1) < 0) {
+            applyMove(ss->s1, ss->v);
+            /* printf("last = %.0f, obj = %.0f      \r", getObjectiveValue(ss->s0), getObjectiveValue(ss->s1));
+            fflush(stdout); */
+        }
+    } else {
+        if (getObjectiveValue(ss->s1) <= getObjectiveValue(ss->s0)) {
+            tmp = ss->s0;
+            ss->s0 = ss->s1;
+            ss->s1 = tmp;
+        }
+        copySolution(ss->s1, ss->s0);
+        printf("\nKick!\n");
+#if 1
+        randomNeighbour(ss->s1, ss->kick_steps);
+#else
+        for (int i = 0; i < ss->kick_steps; i++)
+            applyMove(ss->s1, randomMove(ss->v, ss->s1));
+#endif
     }
     return ss;
 }
 
 struct solution *getSolverSolution(struct solverState *ss) {
-    return ss->s;
+    if (getObjectiveValue(ss->s1) < getObjectiveValue(ss->s0))
+        return ss->s1;
+    else
+        return ss->s0;
 }
 
 void printSolverState(struct solverState *ss) {
-    printSolution(ss->s);
+    printSolution(ss->s0);
+    printSolution(ss->s1);
 }
 

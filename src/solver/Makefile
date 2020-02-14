@@ -3,9 +3,8 @@
 # (C) 2018 Carlos M. Fonseca <cmfonsec@dei.uc.pt>
 # 
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 3 of the License, or (at
-# your option) any later version.
+# it under the terms of the GNU General Public License, version 3, as
+# published by the Free Software Foundation.
 # 
 # This program is distributed in the hope that it will be useful, but
 # WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -18,7 +17,7 @@
 
 IDIR = ../include
 CC = gcc
-OPT = -O3
+OPT = -O3 -g
 CFLAGS = -I$(IDIR)
 PDEPS = $(IDIR)/problem.h
 SDEPS = $(IDIR)/solver.h
@@ -26,7 +25,7 @@ LIBS = -lgsl -lgslcblas -lm
 
 .PHONY: all clean
 
-all: sga.o shd.o
+all: sga.o shd.o ils.o
 
 clean:
 	rm -f *.o *~ core
@@ -34,6 +33,7 @@ clean:
 %.o: %.c
 	$(CC) -c -o $@ $(CFLAGS) $(OPT) $<
 
-shd.o: shd.c $(PDEPS) $(IDIR)/shd.h $(SDEPS)
-shd.o: sga.c $(PDEPS) $(IDIR)/sga.h $(SDEPS)
+shd.o : shd.c  $(PDEPS) $(IDIR)/shd.h $(SDEPS)
+sga.o : sga.c  $(PDEPS) $(IDIR)/sga.h $(SDEPS)
+ils.o: ils.c $(PDEPS) $(IDIR)/ils.h $(SDEPS)
 
