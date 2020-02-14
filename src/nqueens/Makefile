@@ -19,15 +19,15 @@
 IDIR = ../include
 SDIR = ../solver
 CC = gcc
-OPT = -O3
-CFLAGS = -I$(IDIR)
+OPT = -O3 -g
+CFLAGS = -I$(IDIR) -Wall
 PDEPS = $(IDIR)/problem.h
 SDEPS = $(IDIR)/solver.h
 LIBS = -lgsl -lgslcblas -lm
 
 .PHONY: all clean debug
 
-all: nqueens-shd nqueens-sga
+all: nqueens-shd nqueens-sga nqueens-ils
 
 clean:
 	rm -f *.o *~ core
@@ -41,10 +41,15 @@ nqueens-shd: nqueens-shd.o nqueens.o
 nqueens-sga: nqueens-sga.o nqueens.o
 	$(CC) -o $@ $(CFLAGS) $(OPT) $^ $(SDIR)/sga.o $(LIBS)
 
+nqueens-ils: nqueens-ils.o nqueens.o
+	$(CC) -o $@ $(CFLAGS) $(OPT) $^ $(SDIR)/ils.o $(LIBS)
+
 %.o: %.c
 	$(CC) -c -o $@ $(CFLAGS) $(OPT) $<
 
 nqueens.o: nqueens.c nqueens.h $(PDEPS)
 nqueens-shd.o: nqueens-shd.c nqueens.h $(PDEPS) $(IDIR)/shd.h $(SDEPS)
 nqueens-sga.o: nqueens-sga.c nqueens.h $(PDEPS) $(IDIR)/sga.h $(SDEPS)
+nqueens-ils.o: nqueens-ils.c nqueens.h $(PDEPS) $(IDIR)/ils.h $(SDEPS)
+
 

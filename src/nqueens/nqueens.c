@@ -1,5 +1,9 @@
 /* nqueens.c
  *
+ * (C) 2020 Carlos M. Fonseca <cmfonsec@dei.uc.pt> and
+ *          Leonor Coelho and
+ *          Rúben Leal <rleal@student.dei.uc.pt> and
+ *          Samuel Outeiro <souteiro@student.dei.uc.pt>
  * (C) 2018 Eva Tuba <etuba@ieee.org> and Carlos M. Fonseca <cmfonsec@dei.uc.pt>
  * 
  * This program is free software; you can redistribute it and/or modify
@@ -23,6 +27,7 @@
 #include "nqueens.h"
 
 struct problem {
+    float *table;
     int n;   /* number of queens */
 };
 
@@ -35,18 +40,21 @@ struct solution {
     int nmod;       /* no. of positions modified since last evaluation */
     int n;
     int objvalue;
+    int *rndSample; /* array used for sampling without replacement */
+    int sampleLim; 
 };
 
 struct move {
     struct problem *prob;
     int data[2];
+    int incrvalue;
 };
 
-struct pathState{
+struct segment {
     struct problem *prob;
     int *data;      /* normalised permutation computed as p2i[p1] */ 
     int *datai;     /* inverse permutation of data */ 
-    int *cycle ;    /* number ot the cycle each element belons to */
+    int *cycle ;    /* number of the cycle each element belongs to */
     int *pos;       /* positions in which the solutions differ */
     int n;          /* number of queens / board size */
     int n_cycles;   /* number of cycles in data */
@@ -110,6 +118,45 @@ static void swap(int *data, int i, int j) {
     data[j] = el;
 }
 
+static int nh_size(int n) {
+    return n*(n-1)/2;
+}
+
+/*
+ * S's are the Stirling numbers
+ * B = S(n,k)/S(n,k+1) = B(n-1,k)[n-1+B(n-1,k-1)]/[n-1+B(n-1,k)]
+ *
+ * P(n,k) = S(n,k)/S(n+1,k+1) = B(n-1,k)/[n-1+B(n-1,k)]
+ *
+ * Create a unidimensional vector. First fills it with B numbers. Then it starts at the end to the beginning to calculate
+ * the probabilities.
+*/
+
+static int ix(int n, int k) {
+    return n*(n+1)/2+k;
+}
+
+static void init_table(float *t, int n) {
+    int i, k;
+    t[0] = 0.;
+    t[1] = 0.;
+    t[2] = 1.;
+    for(i = 2; i < n-1; i++) {
+        t[ix(i,0)] = 0.;
+        for(k = 1; k < i; k++)
+            t[ix(i,k)] = t[ix(i-1,k)] *
+                    (i + t[ix(i-1,k-1)]) / (i + t[ix(i-1,k)]);
+        t[ix(i,i)] = i*(i+1)/2;
+    }
+    t[ix(n-1,0)] = 0.;
+    for(i = n-1; i > 1; i--) {
+        for(k = 1; k < i; k++)
+            t[ix(i,k)] = t[ix(i-1,k)] / (i + t[ix(i-1,k)]);
+        t[ix(i,i)] = 1.;
+    }
+    t[0] = 1.;
+}
+
 /**********************************************/
 /* ----- Problem-specific instantiation ----- */
 /**********************************************/
@@ -121,35 +168,25 @@ static void swap(int *data, int i, int j) {
  *   Should just take an integer as an argument.
  *   Needs error checking
  */
-#if 0
-struct problem *newProblem(const char *filename) {
-    struct problem *p = NULL;
-    FILE *infile;
-    int n=-1;
-    infile = fopen(filename, "r");
-    if (infile) {
-        fscanf(infile, "%d", &n);
-        fclose(infile);
-        if (n > 0) {
-            p = (struct problem*) malloc(sizeof (struct problem));
-            p->n = n;
-        } else
-            fprintf(stderr, "Invalid n-Queens instance %s\n", filename);
-    } else
-        fprintf(stderr, "Cannot open file %s\n", filename);
-    return p;
-}
-#else
 struct problem *newProblem(int n) {
     struct problem *p = NULL;
     if (n > 0) {
-        p = (struct problem*) malloc(sizeof (struct problem));
+        p = (struct problem *) malloc(sizeof (struct problem));
         p->n = n;
+        p->table = (float *) malloc(n*(n+1)/2 * sizeof(float));
+        init_table(p->table, n);
     } else
         fprintf(stderr, "Invalid board size: %d\n", n);
+#if 0
+    int i, k;
+    for (i = 0; i < n; i++) {
+        for (k = 0; k <= i; k++)
+            printf("%8.4f", p->table[ix(i,k)]);
+        printf("\n");
+    }
+#endif
     return p;
 }
-#endif
 
 /*****************************/
 /* ----- API functions ----- */
@@ -162,13 +199,20 @@ struct problem *newProblem(int n) {
  * Status: CHECK
  */
 struct solution *allocSolution(struct problem *p) {
+    int i, j, k = 0, n = p->n;
     struct solution *s = malloc(sizeof (struct solution));
     s->prob = p;
-    s->data = malloc(p->n * sizeof (int));
-    s->olddata = malloc(p->n * sizeof (int));
-    s->mod = malloc(p->n * sizeof (int));
-    s->modi = malloc(p->n * sizeof (int));
-    s->n = p->n;
+    s->data = malloc(n * sizeof (int));
+    s->olddata = malloc(n * sizeof (int));
+    s->mod = malloc(n * sizeof (int));
+    s->modi = malloc(n * sizeof (int));
+    s->n = n;
+    /* randomMoveWOR() support */
+    s->sampleLim = nh_size(n);
+    s->rndSample = malloc(s->sampleLim * sizeof (int));
+    for(j = 1; j < n; j++)
+        for(i = 0; i < j; i++)
+            s->rndSample[k++] = j*n+i;
     return s;
 }
 
@@ -186,8 +230,8 @@ struct move *allocMove(struct problem *p) {
  * Allocate memory for a path
  * Status: TENTATIVE
  */
-struct pathState *allocPathState(struct problem *p) {
-    struct pathState *ps = malloc (sizeof (struct pathState));
+struct segment *allocSegment(struct problem *p) {
+    struct segment *ps = malloc (sizeof (struct segment));
     ps->prob = p;
     ps->data = malloc(p->n * sizeof (int));
     ps->datai = malloc(p->n * sizeof (int));
@@ -202,6 +246,7 @@ struct pathState *allocPathState(struct problem *p) {
  * Status: FINAL
  */
 void freeProblem(struct problem *p) {
+    free(p->table);
     free(p);
 }
 
@@ -214,6 +259,7 @@ void freeSolution(struct solution *s) {
     free(s->olddata);
     free(s->mod);
     free(s->modi);
+    free(s->rndSample);
     free(s);
 }
 
@@ -229,9 +275,9 @@ void freeMove(struct move *v) {
  * Free the memory used by a path
  * Status: IN_PROGRESS
  * Notes:
- *   update along with pathState
+ *   update along with segment
  */
-void freePathState(struct pathState *ps) {
+void freeSegment(struct segment *ps) {
     free(ps->data);
     free(ps->datai);
     free(ps->cycle);
@@ -264,7 +310,7 @@ void printMove(struct move *v) {
     printf("%d-Queens move: %d, %d\n", v->prob->n, v->data[0], v->data[1]);
 }
 
-void printPathState(struct pathState *ps) {
+void printSegment(struct segment *ps) {
     int i;
     printf("%d-Queens path state\n", ps->n);
     printf("  Path length: %d\n  Permutation:", ps->n - ps->n_cycles);
@@ -296,13 +342,40 @@ struct solution *randomSolution(struct solution *s) {
     for (i = 0; i < s->n; i++)
         s->mod[i] = s->modi[i] = i;
     s->nmod = s->n;
+    s->sampleLim = nh_size(s->n);
     return s;
 }
+
+struct solution *randomNeighbour(struct solution *s, int d){
+    float *table = s->prob->table;
+    int j, k = s->n-d;
+    for(int i = s->n-1; i >= k /* && k > 0 */; i--){
+        if(gsl_rng_uniform(rng) >=  table[ix(i,k-1)]) {
+            j = randint(i-1);
+            swap(s->data, i, j);
+            if (s->modi[i] >= s->nmod) {
+                swap(s->mod, s->modi[i], s->nmod);
+                swap(s->modi, i, s->mod[s->modi[i]]);
+                s->nmod++;
+            }
+            if (s->modi[j] >= s->nmod) {
+                swap(s->mod, s->modi[j], s->nmod);
+                swap(s->modi, j, s->mod[s->modi[j]]);
+                s->nmod++;
+            }
+        }
+        else
+            k -= 1;
+    }
+    s->sampleLim = nh_size(s->n);
+    return s;
+}
+
 
 /* Solution inspection */
 
 /*
- * Generate solutions uniformly at random
+ * Solution evaluation
  * Status: INTERIM
  * Notes:
  *   Implements incremental evaluation for multiple moves
@@ -345,6 +418,15 @@ double getObjectiveValue(struct solution *s) {
     return (double)s->objvalue;
 }
 
+int getExcentricity(struct solution *s) {
+    return s->n-1;
+}
+
+int getNeighbourhoodSize(struct solution *s){
+    return nh_size(s->n);
+}
+
+
 /* Operations on solutions*/
 struct solution *copySolution(struct solution *dest, const struct solution *src) {
     dest->prob = src->prob;
@@ -353,6 +435,8 @@ struct solution *copySolution(struct solution *dest, const struct solution *src)
     memcpy(dest->olddata, src->olddata, src->n * sizeof (int));
     memcpy(dest->mod, src->mod, src->n * sizeof (int));
     memcpy(dest->modi, src->modi, src->n * sizeof (int));
+    memcpy(dest->rndSample, src->rndSample, nh_size(src->n) * sizeof (int));
+    dest->sampleLim = src->sampleLim;
     dest->nmod = src->nmod;
     dest->objvalue = src->objvalue;
     return dest;
@@ -379,6 +463,7 @@ struct solution *applyMove(struct solution *s, const struct move *v) {
         swap(s->modi, j, s->mod[s->modi[j]]);
         s->nmod++;
     }
+    s->sampleLim = nh_size(s->n);
     return s;
 }
 
@@ -399,39 +484,98 @@ struct move *randomMove(struct move *v, const struct solution *s) {
     return v;
 }
 
+struct solution *resetRandomMoveWOR(struct solution *s){
+    s->sampleLim = nh_size(s->n);
+    return s;
+}
+
+struct move *randomMoveWOR(struct move *v, struct solution *s) {
+    /* move v must have been allocated with allocMove() */
+    int r, x, n = s->n;
+
+    if (s->sampleLim <= 0) return NULL;
+    r = randint(--s->sampleLim);
+    x = s->rndSample[r];
+    s->rndSample[r] = s->rndSample[s->sampleLim];
+    s->rndSample[s->sampleLim] = x;
+    v->data[0] = x % n;
+    v->data[1] = x / n;
+    return v;
+}
+
+double getObjectiveIncrement(struct move *v, struct solution *s) {
+    int i, j, k, n = s->n, att;
+    if (v->data[0] == v->data[1]) /* do nothing */
+        return 0.0;
+    else if (v->data[0] < v->data[1]) {   
+        i = v->data[0];
+        j = v->data[1];
+    } else {
+        i = v->data[1];
+        j = v->data[0];
+    }
+    att = 0;
+    /*
+        It should be noted that:
+        (abs(i - j) == abs(s->data[i] - s->data[j])) == (abs(i - j) == abs(s->data[j] - s->data[i])),
+        that is, the two swapped queens interact the same way before and after swapping. Therefore,
+        there is no need to compute their interaction.
+    */
+    for (k = 0; k < i; k++) {
+        att += ((i - k) == abs(s->data[k] - s->data[j])) - ((i - k) == abs(s->data[k] - s->data[i]));
+        att += ((j - k) == abs(s->data[k] - s->data[i])) - ((j - k) == abs(s->data[k] - s->data[j]));
+    }
+    for (k = i+1; k < j; k++) {
+        att += ((k - i) == abs(s->data[k] - s->data[j])) - ((k - i) == abs(s->data[k] - s->data[i]));
+        att += ((j - k) == abs(s->data[k] - s->data[i])) - ((j - k) == abs(s->data[k] - s->data[j]));
+    }
+    for (k = j+1; k < n; k++) {
+        att += ((k - i) == abs(s->data[k] - s->data[j])) - ((k - i) == abs(s->data[k] - s->data[i]));
+        att += ((k - j) == abs(s->data[k] - s->data[i])) - ((k - j) == abs(s->data[k] - s->data[j]));
+    }
+    v->incrvalue = att;
+    return (double)v->incrvalue;
+}
+
 /*
- * Generate the next random move in a path towards a solution
+ * Generate a random move in towards the second extreme of a segment
  * Status: CHECK, NEEDS_WORK
  * Notes:
- *  should compute moves by using cycles
+ *  FIXME: should compute moves by using cycles
  */
-struct move *nextRandomMove(struct move *v, struct pathState *ps) {
+struct move *randomMoveTowards(struct move *v, struct segment *ps) {
     int i, j, r, n = ps->n;
-    int *pos = ps->pos, *data = ps->data, *datai = ps->datai;
+    int *pos = ps->pos;
 
-    if (ps->n_cycles >= n) { /* end of path has been reached, no move is possible */
-        v->data[0] = v->data[1] = 0; /* null move */
-        return v;
-    }
+    if (ps->n_cycles >= n) /* end of path has been reached, no move is possible */
+        return NULL;
 
     /* Note: a swap move may correct two positions at once, but we only check
        one at a time. Therefore, we may need to skip null moves here, and try
-       again. */
+       again. FIXME: input arg segment cannot be const for this reason! */
     do {
         /* Draw at random a position to correct */
         r = randint(--ps->n_diff);
         i = v->data[0] = pos[r];  /* choose an element that is not correct */ 
         /* Find where correct one is */
-        j = datai[i];
+        j = ps->datai[i];
         pos[r] = pos[ps->n_diff];
     } while (i == j);
     v->data[1] = j;
-
-    /* Update pathState */
-    ps->n_cycles++;
-    swap(ps->datai, i, data[i]);
-    swap(ps->data, i, j);
     return v;
+}
+
+struct segment *applyMoveToSegment(struct segment *ps, const struct move *v) {
+    int i, j;
+    /* Update segment */
+    i = v->data[0];
+    j = v->data[1];
+    /* FIXME: double check this, it can probably be written more simply */
+    swap(ps->datai, ps->data[i], ps->data[j]);
+    swap(ps->data, i, j);
+    ps->n_cycles += 2 * (ps->cycle[i] == ps->cycle[j]) - 1;
+    /* FIXME: Must update cycle[] here to reflect the move applied. */
+    return ps;
 }
 
 /* Path generation */
@@ -442,7 +586,7 @@ struct move *nextRandomMove(struct move *v, struct pathState *ps) {
  * Notes:
  *   find and save cycles of permutation p2i[p1]
  */
-struct pathState *initPathTo(struct pathState *ps, const struct solution *s1, const struct solution *s2) {
+struct segment *initSegment(struct segment *ps, const struct solution *s1, const struct solution *s2) {
     int i, j, n = ps->n;
     
     /* Compute reference permutation p2i[p1] using ps->pos as a buffer */
@@ -477,21 +621,13 @@ struct pathState *initPathTo(struct pathState *ps, const struct solution *s1, co
     return ps;    
 }
 
-/*
- * Set up a path away from a solution
- * Status: NOT IMPLEMENTED
- * Notes: 
- */
-struct pathState *initPathAwayFrom(struct pathState *ps, const struct solution *s) {
-    return NULL;
-}
-
 /* Path inspection */
 
 /*
  * Current length of path
  * Status: FINAL
  */
-int getPathLength(const struct pathState *ps) {
+int getLength(struct segment *ps) {
     return ps->n - ps->n_cycles;
 }
+
