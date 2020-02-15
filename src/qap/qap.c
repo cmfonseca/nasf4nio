@@ -1,7 +1,7 @@
 /* qap.c
  *
  * (C) 2020 Carlos M. Fonseca <cmfonsec@dei.uc.pt> and
- *          Leonor Coelho and
+ *          Leonor Coelho <leonor.coelho@gmail.com> and
  *          Rúben Leal <rleal@student.dei.uc.pt> and
  *          Samuel Outeiro <souteiro@student.dei.uc.pt>
  *
