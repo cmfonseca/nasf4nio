@@ -113,13 +113,13 @@ static int nh_size(int n) {
 }
 
 /*
- * S's are the Stirling numbers
- * B = S(n,k)/S(n,k+1) = B(n-1,k)[n-1+B(n-1,k-1)]/[n-1+B(n-1,k)]
+ * S(n,k) are the Stirling numbers
+ * B(n,k) = S(n+1,k)/S(n+1,k+1) = B(n-1,k)[n + B(n-1,k-1)]/[n + B(n-1,k)]
  *
- * P(n,k) = S(n,k)/S(n+1,k+1) = B(n-1,k)/[n-1+B(n-1,k)]
+ * P(n,k) = S(n,k)/S(n+1,k+1) = B(n-1,k)/[n + B(n-1,k)]
  *
- * Create a unidimensional vector. First fills it with B numbers. Then it starts at the end to the beginning to calculate
- * the probabilities.
+ * Create a unidimensional vector. First fill it with B numbers. Then,
+ * start from the end to the beginning to calculate the probabilities.
 */
 
 static int ix(int n, int k) {
