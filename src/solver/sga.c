@@ -1,6 +1,6 @@
 /* sga.c
  *
- * (C) 2018 Carlos M. Fonseca <cmfonsec@dei.uc.pt>
+ * (C) 2018, 2020 Carlos M. Fonseca <cmfonsec@dei.uc.pt>
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 3, as
@@ -156,6 +156,10 @@ static void geometric_recombination(struct solution **pop, int n, double Px, str
 struct solverState *newSolver(struct problem *p, int popsize) {
     struct solverState *ss;
     int i;
+    if (getNumObjectives(p) != 1) {
+        fprintf(stderr, "sga error: problem must have a single objective.");
+        return NULL;
+    }
     /* memory allocation */
     ss = malloc(sizeof (struct solverState));
     ss->p = p;
@@ -179,7 +183,7 @@ struct solverState *newSolver(struct problem *p, int popsize) {
     }
     ss->mincost = INFINITY;
     for (i = 0; i < popsize; i++) {
-        ss->cost[i] = getObjectiveValue(ss->parent[i]);
+        getObjectiveVector(ss->cost+i, ss->parent[i]);
         if (ss->cost[i] < ss->mincost) {
             ss->mincost = ss->cost[i];
             copySolution(ss->best, ss->parent[i]);
@@ -235,7 +239,7 @@ struct solverState *nextSolverState(struct solverState *ss) {
     ss->parent = ss->offspring;
     ss->offspring = tmppop;
     for (i = 0; i < popsize; i++) {
-        ss->cost[i] = getObjectiveValue(ss->parent[i]);
+        getObjectiveVector(ss->cost + i, ss->parent[i]);
         if (ss->cost[i] < ss->mincost) {
             ss->mincost = ss->cost[i];
             copySolution(ss->best, ss->parent[i]);

@@ -26,7 +26,7 @@ LIBS = -lgsl -lgslcblas -lm
 
 .PHONY: all clean debug
 
-all: qap-shd qap-ils qap-sga
+all: qap-shd qap-ils # qap-sga
 
 clean:
 	rm -f *.o *~ core
@@ -51,4 +51,3 @@ qap.o: qap.c qap.h $(PDEPS)
 qap-shd.o: qap-shd.c qap.h $(PDEPS) $(IDIR)/shd.h $(SDEPS)
 qap-ils.o: qap-ils.c qap.h $(PDEPS) $(IDIR)/ils.h $(SDEPS)
 qap-sga.o: qap-sga.c qap.h $(PDEPS) $(IDIR)/sga.h $(SDEPS)
-

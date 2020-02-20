@@ -1,6 +1,6 @@
 /* ils.c
  *
- * (C) 2019 Carlos M. Fonseca <cmfonsec@dei.uc.pt>
+ * (C) 2019, 2020 Carlos M. Fonseca <cmfonsec@dei.uc.pt>
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 3, as
@@ -31,6 +31,10 @@ struct solverState {
 
 struct solverState *newSolver(struct problem *p) {
     struct solverState *ss;
+    if (getNumObjectives(p) != 1) {
+        fprintf(stderr, "ils error: problem must have a single objective.");
+        return NULL;
+    }
     ss = (struct solverState *) malloc(sizeof (struct solverState));
     ss->p = p;
     ss->s0 = allocSolution(p);
@@ -52,20 +56,18 @@ void freeSolver(struct solverState *ss) {
 
 struct solverState *nextSolverState(struct solverState *ss) {
     struct solution *tmp;
+    double o0, o1;
     if (randomMoveWOR(ss->v, ss->s1)) {
-        if (getObjectiveIncrement(ss->v, ss->s1) < 0) {
+        if ((*getObjectiveIncrement(&o1, ss->v, ss->s1)) < 0)
             applyMove(ss->s1, ss->v);
-            /* printf("last = %.0f, obj = %.0f      \r", getObjectiveValue(ss->s0), getObjectiveValue(ss->s1));
-            fflush(stdout); */
-        }
     } else {
-        if (getObjectiveValue(ss->s1) <= getObjectiveValue(ss->s0)) {
+        if (*getObjectiveVector(&o1, ss->s1) <= *getObjectiveVector(&o0, ss->s0)) {
             tmp = ss->s0;
             ss->s0 = ss->s1;
             ss->s1 = tmp;
         }
         copySolution(ss->s1, ss->s0);
-        printf("\nKick!\n");
+        /* printf("Kick!\n"); */
 #if 1
         randomNeighbour(ss->s1, ss->kick_steps);
 #else
@@ -77,7 +79,8 @@ struct solverState *nextSolverState(struct solverState *ss) {
 }
 
 struct solution *getSolverSolution(struct solverState *ss) {
-    if (getObjectiveValue(ss->s1) < getObjectiveValue(ss->s0))
+    double o0, o1;
+    if (*getObjectiveVector(&o1, ss->s1) < *getObjectiveVector(&o0, ss->s0))
         return ss->s1;
     else
         return ss->s0;

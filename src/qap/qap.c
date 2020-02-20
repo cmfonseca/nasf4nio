@@ -185,6 +185,10 @@ struct problem *newProblem(const char *filename) {
     return p;
 }
 
+int getNumObjectives(const struct problem *p) {
+    return 1;
+}
+
 /*****************************/
 /* ----- API functions ----- */
 /*****************************/
@@ -348,7 +352,7 @@ struct solution *randomNeighbour(struct solution *s, int d){
  * Notes:
  *   Implements incremental evaluation for multiple moves
  */
-double getObjectiveValue(struct solution *s) {
+double *getObjectiveVector(double *objv, struct solution *s) {
     int i, j, n = s->n, obj, *mod, nmod = s->nmod;
     int *flow = s->prob->flow, *dist = s->prob->dist;
     if (nmod > (1 - 0.707) * n) { /* full evaluation threshold to be fine-tuned experimentally */
@@ -382,7 +386,8 @@ double getObjectiveValue(struct solution *s) {
         printf("incremental = %d, full = %d, diff = %d\n", s->objvalue, obj, s->objvalue-obj);
 #endif
     }
-    return (double)s->objvalue;
+    *objv = (double)s->objvalue;
+    return objv;
 }
 
 int getNeighbourhoodSize(struct solution *s){
@@ -465,12 +470,13 @@ struct move *randomMoveWOR(struct move *v, struct solution *s) {
     return v;
 }
 
-double getObjectiveIncrement(struct move *v, struct solution *s) {
+double *getObjectiveIncrement(double *obji, struct move *v, struct solution *s) {
     int i, j, k, n = s->n, obj;
     int *flow = s->prob->flow, *dist = s->prob->dist;
-    if (v->data[0] == v->data[1]) /* do nothing */
-        return 0.0;
-    else if (v->data[0] < v->data[1]) {   
+    if (v->data[0] == v->data[1]) { /* do nothing */
+        *obji = 0.0;
+        return obji;
+    } else if (v->data[0] < v->data[1]) {   
         i = v->data[0];
         j = v->data[1];
     } else {
@@ -503,7 +509,6 @@ double getObjectiveIncrement(struct move *v, struct solution *s) {
     }
     /* for testing */
     // printf("%d\n", obj);
-    v->incrvalue = obj;
-    return (double)v->incrvalue;
+    *obji = (double)(v->incrvalue = obj);
+    return obji;
 }
-

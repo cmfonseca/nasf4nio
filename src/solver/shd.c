@@ -1,6 +1,6 @@
 /* shd.c
  *
- * (C) 2018 Carlos M. Fonseca <cmfonsec@dei.uc.pt>
+ * (C) 2018, 2020 Carlos M. Fonseca <cmfonsec@dei.uc.pt>
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 3, as
@@ -30,6 +30,10 @@ struct solverState {
 
 struct solverState *newSolver(struct problem *p) {
     struct solverState *ss;
+    if (getNumObjectives(p) != 1) {
+        fprintf(stderr, "shd error: problem must have a single objective.");
+        return NULL;
+    }
     ss = (struct solverState *) malloc(sizeof (struct solverState));
     ss->p = p;
     ss->s = allocSolution(p);
@@ -45,8 +49,9 @@ void freeSolver(struct solverState *ss) {
 }
 
 struct solverState *nextSolverState(struct solverState *ss) {
+    double inc;
     randomMove(ss->v, ss->s);
-    if (getObjectiveIncrement(ss->v, ss->s) <= 0) {
+    if (*getObjectiveIncrement(&inc, ss->v, ss->s) <= 0) {
         applyMove(ss->s, ss->v);
     }
     return ss;

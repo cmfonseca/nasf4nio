@@ -38,6 +38,14 @@ struct segment;
  * problem-specific, the function arguments are deliberately left unspecified */
 struct problem *newProblem();
 
+  /**********************/
+ /* Problem inspection */
+/**********************/
+
+int getNumObjectives(const struct problem *p);
+double *getObjectiveLB(double *objLB, struct problem *p);
+double *getObjectiveUB(double *objUB, struct problem *p);
+
 
   /*********************/
  /* Memory management */
@@ -92,7 +100,8 @@ struct solution *randomNeighbour(struct solution *s, int d);
  /* Solution inspection */
 /***********************/
 
-/* getObjectiveValue() supports full and/or partial solution evaluation.
+/* getObjectiveVector() supports single and multiple objective full and/or
+ * partial solution evaluation.
  * Once a solution is evaluated, results may be cached in the solution
  * itself so that it can be re-evaluated more efficiently after it is
  * modified by one or more calls to applyMove(). Therefore, the formal
@@ -100,7 +109,7 @@ struct solution *randomNeighbour(struct solution *s, int d);
  * this function returns, but the time at which actual evaluation occurs
  * is otherwise left unspecified.
  */
-double getObjectiveValue(struct solution *s);
+double *getObjectiveVector(double *objv, struct solution *s);
 
 /* 
  * Number of direct neighbours of a given solution.
@@ -111,6 +120,11 @@ int getNeighbourhoodSize(struct solution *s);
  * Distance to the farthest point in solution space.
  */
 int getExcentricity(struct solution *s);
+
+/* 
+ * Test equality of solutions.
+ */
+int equalSolutions(struct solution *s1, struct solution *s2);
 
 
   /*******************/
@@ -138,6 +152,21 @@ struct move *randomMoveWOR(struct move *v, struct solution *s);
  */
 struct solution *resetRandomMoveWOR(struct solution *s);
 
+/* enumMove() implements enumeration of the neighbourhood of a given solution,
+ * in an unspecified order, that allows move evaluation with
+ * getObjectiveIncrement() to be performed faster than with random moves,
+ * particularly when evaluating a large part of the neighbourhood.
+ * The first input argument must be a pointer to a move previously allocated
+ * with allocMove(), which is modified in place. The function returns this
+ * pointer if a new move is generated or NULL if there are no moves left.
+ */
+struct move *enumMove(struct move *v, struct solution *s);
+
+/* resetEnumMove() resets the enumeration of the neighbourhood of a given
+ * solution, so that the next call to enumMove() will start the enumeration
+ * from the beginning. The function returns its input argument.
+ */
+struct solution *resetEnumMove(struct solution *s);
 
   /**************************/
  /* Operations on solutions*/
@@ -164,11 +193,11 @@ struct solution *applyMove(struct solution *s, const struct move *v);
  /* Move inspection */
 /*******************/
 
-/* getObjectiveIncrement() supports move evaluation with respect to the
- * solution for which it was generated, before it is actually applied to
- * that solution (if it ever is). The result of evaluating a move with
- * respect to a solution other than that for which it was generated 
- * (or to a pristine copy of it) is undefined.
+/* getObjectiveIncrement() supports single and multiple objective move
+ * evaluation with respect to the solution for which it was generated, before
+ * it is actually applied to that solution (if it ever is). The result of
+ * evaluating a move with respect to a solution other than that for which it
+ * was generated (or to a pristine copy of it) is undefined.
  * Once a move is evaluated, results may be cached in the move itself, so
  * that they can be used by applyMove() to update the evaluation state of
  * the solution more efficiently.
@@ -176,7 +205,7 @@ struct solution *applyMove(struct solution *s, const struct move *v);
  * to speed up evaluation of future moves. Consequently, neither formal
  * argument is const.
  */
-double getObjectiveIncrement(struct move *v, struct solution *s);
+double *getObjectiveIncrement(double *obji, struct move *v, struct solution *s);
 
 
   /**********************/

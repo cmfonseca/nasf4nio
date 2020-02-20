@@ -176,7 +176,7 @@ struct problem *newProblem(int n) {
         p->table = (float *) malloc(n*(n+1)/2 * sizeof(float));
         init_table(p->table, n);
     } else
-        fprintf(stderr, "Invalid board size: %d\n", n);
+        fprintf(stderr, "nqueens: Invalid board size: %d\n", n);
 #if 0
     int i, k;
     for (i = 0; i < n; i++) {
@@ -186,6 +186,10 @@ struct problem *newProblem(int n) {
     }
 #endif
     return p;
+}
+
+int getNumObjectives(const struct problem *p) {
+    return 1;
 }
 
 /*****************************/
@@ -380,7 +384,7 @@ struct solution *randomNeighbour(struct solution *s, int d){
  * Notes:
  *   Implements incremental evaluation for multiple moves
  */
-double getObjectiveValue(struct solution *s) {
+double *getObjectiveVector(double *objv, struct solution *s) {
     int i, j, n = s->n, att, *mod, nmod = s->nmod;
     if (nmod > .28*n) { /* full evaluation threshold to be fine-tuned experimentally */
         att = 0;
@@ -415,7 +419,8 @@ double getObjectiveValue(struct solution *s) {
 
 #endif
     }
-    return (double)s->objvalue;
+    *objv = (double)s->objvalue;
+    return objv;
 }
 
 int getExcentricity(struct solution *s) {
@@ -503,11 +508,12 @@ struct move *randomMoveWOR(struct move *v, struct solution *s) {
     return v;
 }
 
-double getObjectiveIncrement(struct move *v, struct solution *s) {
+double *getObjectiveIncrement(double *obji, struct move *v, struct solution *s) {
     int i, j, k, n = s->n, att;
-    if (v->data[0] == v->data[1]) /* do nothing */
-        return 0.0;
-    else if (v->data[0] < v->data[1]) {   
+    if (v->data[0] == v->data[1]) { /* do nothing */
+        *obji = 0.0;
+        return obji;
+    } else if (v->data[0] < v->data[1]) {   
         i = v->data[0];
         j = v->data[1];
     } else {
@@ -533,8 +539,8 @@ double getObjectiveIncrement(struct move *v, struct solution *s) {
         att += ((k - i) == abs(s->data[k] - s->data[j])) - ((k - i) == abs(s->data[k] - s->data[i]));
         att += ((k - j) == abs(s->data[k] - s->data[i])) - ((k - j) == abs(s->data[k] - s->data[j]));
     }
-    v->incrvalue = att;
-    return (double)v->incrvalue;
+    *obji = (double)(v->incrvalue = att);
+    return obji;
 }
 
 /*
