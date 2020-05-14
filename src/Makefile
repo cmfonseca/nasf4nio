@@ -23,13 +23,15 @@ all:
 	@$(MAKE) -C qap
 #	@$(MAKE) -C flowshop
 #	@$(MAKE) -C knapsack
-
+	@$(MAKE) -C symmtsp
+	
 clean:
 	@$(MAKE) -C solver clean
 	@$(MAKE) -C nqueens clean
 	@$(MAKE) -C qap clean
 	@$(MAKE) -C flowshop clean
 	@$(MAKE) -C knapsack clean
+	@$(MAKE) -C symmtsp clean
 	rm -f *~ core include/*~
 
 debug:
@@ -38,5 +40,6 @@ debug:
 	@$(MAKE) -C qap debug
 #	@$(MAKE) -C flowshop debug
 #	@$(MAKE) -C knapsack debug
+	@$(MAKE) -C symmtsp
 
 
