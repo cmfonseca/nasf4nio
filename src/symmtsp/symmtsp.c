@@ -1,4 +1,3 @@
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -28,15 +27,29 @@ struct move{
 };
 
 
+struct segment {
+    struct problem *prob;
+    int n;
+    int *data;
+    int *datai;
+	int *breakPoints;	/* positions of breakpoints*/
+	int *bpAtPosition;  /* is there break point at given position*/
+    int numBp;
+    int *breakPointsi;
+};
+
+
 extern gsl_rng *rng;    /* The single rng instance used by the whole code */
+
+
+/**********************************/
+/* ----- Utility functions ----- */
+/**********************************/
 
 static int randint(int n_max) {
     return gsl_rng_uniform_int(rng, n_max+1);
 }
 
-/**********************************/
-/* ----- Utility functions ----- */
-/**********************************/
 
 static int *randperm(int *p, int n) {
     /* Inside-out algorithm */
@@ -52,16 +65,26 @@ static int *randperm(int *p, int n) {
     return p;
 }
 
+
 static void swap(int *data, int i, int j) {
     int el = data[i];
     data[i] = data[j];
     data[j] = el;
 }
 
+
 static int nh_size(int n) {
     return (n <= 3) ? 0 : n * (n - 3);
 }
 
+
+void printIntArr(int *array, int n){
+	int i;
+	for(i = 0; i < n; ++i){
+		printf("%d ", array[i]);
+	}
+	printf("\n");
+}
 
 
 /*************************/
@@ -140,6 +163,21 @@ struct move *allocMove(struct problem *p){
 	return m;
 }
 
+
+struct segment *allocSegment(struct problem *p){
+	struct segment *seg = malloc(sizeof(*seg));
+	seg->prob = p;
+	seg->data = malloc(sizeof(int) * p->n);
+	seg->datai = malloc(sizeof(int) * p->n);
+	seg->breakPoints = malloc(sizeof(int) * p->n);
+	seg->breakPointsi = malloc(sizeof(int) * p->n);
+	seg->bpAtPosition = malloc(sizeof(int) * p->n);
+	seg->numBp = 0;
+	seg->n = p->n;
+	return seg;
+}
+
+
 void freeProblem(struct problem *p){
 	free(p -> distances);
 	free(p);
@@ -155,6 +193,15 @@ void freeSolution(struct solution *s){
 
 void freeMove(struct move *v){
 	free(v);
+}
+
+
+void freeSegment(struct segment *seg){
+	free(seg->data);
+	free(seg->datai);
+	free(seg->breakPoints);
+	free(seg->bpAtPosition);
+	free(seg);
 }
 
 
@@ -196,7 +243,20 @@ void printMove(struct move *v){
 	printf("Move  [%d,%d]\n", v->data[0], v->data[1]);
 };
 
-
+void printSegment(struct segment *seg){
+	int i;
+	printf("--------------------\n");
+	printf("Segment: ");
+	for(i = 0; i < seg->n; ++i)
+		printf("%d ", seg->data[i]);
+	printf("\n");
+	printf("Segment has %d breakpoints\n", seg->numBp);
+	printf("Indexes of breakpoints: ");
+	for(i = 0; i < seg->numBp; ++i)
+		printf("%d ", seg->breakPoints[i]);
+	printf("\n");
+	printf("--------------------\n");
+}
 
 /***********************/
 /* Solution generation */
@@ -347,6 +407,104 @@ struct solution *setObjValue(double objv, struct solution *s){
 	return s;
 }
 
+
+/**********************/
+/* Segment operations */
+/**********************/
+
+struct segment *initSegment(struct segment *seg, const struct solution *s1, const struct solution *s2){
+	int i,n = s1->n, diff;
+	int *s1_datainverse;
+
+	s1_datainverse = malloc(sizeof(int) * n);
+	for(i = 0; i < n; ++i)
+		s1_datainverse[s1->data[i]] = i;
+	for(i = 0; i < n; ++i){
+		seg->data[i] = s1_datainverse[s2->data[i]];
+		seg->datai[seg->data[i]] = i;
+	}
+
+	seg->numBp = 0;
+	diff =  abs( seg->data[0] - seg->data[n - 1] );
+	if(diff != 1 && diff != (n - 1) ){
+		seg->breakPoints[seg->numBp++] = 0;
+		seg->breakPointsi[0] = 0;
+		seg->bpAtPosition[0] = 1;
+	}else{
+		seg->bpAtPosition[0] = 0;
+	}
+
+	for(i = 1; i < n; ++i){
+		diff = abs( seg->data[i] - seg->data[i - 1] );
+		if( diff != 1 && diff != (n - 1) ){
+			seg->breakPoints[seg->numBp] = i;
+			seg->breakPointsi[i] = seg->numBp;
+			seg->bpAtPosition[i] = 1;
+			seg->numBp ++;
+		}
+		else{
+			seg->bpAtPosition[i] = 0;
+		}
+	}
+	free(s1_datainverse);
+	return seg;
+}
+
+
+int findSuitableBreakPoint(struct segment *seg, int bp){
+	int elemAtBp, biggerAdjPos, smallerAdjPos , n = seg->n;
+
+	//check first left element at bp
+	elemAtBp = seg->data[bp];
+	biggerAdjPos = seg->datai[(elemAtBp + 1) % n];
+	smallerAdjPos = seg->datai[(elemAtBp - 1 + n) % n];
+
+	if(seg->bpAtPosition[biggerAdjPos] )
+		return biggerAdjPos;
+	else if(seg->bpAtPosition[smallerAdjPos] )
+		return smallerAdjPos;
+	else
+		return -1;
+}
+
+
+struct move *randomMoveTowards(struct move *v, struct segment *seg){
+	int r,bp1,bp2, n = seg->n, numBpCopy = seg->numBp;
+	int *breakPointsCopy = malloc(sizeof(int) * seg->numBp);
+	memcpy(breakPointsCopy ,seg->breakPoints, seg->numBp * sizeof(int));
+
+	if(seg->numBp == 0)
+		return NULL;
+
+
+	while(numBpCopy){
+		r = randint(numBpCopy - 1);
+		bp1 = breakPointsCopy[r];
+		bp2 = findSuitableBreakPoint(seg, bp1);
+		if(bp2 != -1){
+			v->data[0] = bp1;
+			v->data[1] = bp2;
+			free(breakPointsCopy);
+			return v;
+		}
+		swap(breakPointsCopy, r, --numBpCopy);
+	}
+	//if non was found pick 2 randomly
+	r = randint(seg->numBp - 1);
+	v->data[0] = seg->breakPoints[r];
+	v->data[1] = seg->breakPoints[ (r + 1 + randint(seg->numBp - 2)) % seg->numBp ];
+	free(breakPointsCopy);
+	return v;
+}
+
+
+struct segment *applyMoveToSegment(struct segment *seg, const struct move *v){
+	return NULL;
+}
+
+int getLength(struct segment *seg){
+	return seg->numBp;
+}
 
 /*******************/
 /* Move inspection */
