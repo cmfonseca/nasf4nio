@@ -27,7 +27,7 @@ LIBS = -lgsl -lgslcblas -lm
 
 .PHONY: all clean debug
 
-all: symmtsp-shd symmtsp-ils symmtsp-sga  symmtsp-test
+all: symmtsp-shd symmtsp-ils symmtsp-sga  
 clean:
 	rm -f *.o *~ core
 
@@ -44,9 +44,6 @@ symmtsp-ils: symmtsp-ils.o symmtsp.o
 symmtsp-sga: symmtsp-sga.o symmtsp.o
 	$(CC) -o $@ $(CFLAGS) $(OPT) $^ $(SDIR)/sga.o $(LIBS)
 
-symmtsp-test: symmtsp-test.o symmtsp.o
-	$(CC) -o $@ $(CFLAGS) $(OPT) $^ $(SDIR)/sga.o $(LIBS)
-
 %.o: %.c
 	$(CC) -c -o $@ $(CFLAGS) $(OPT) $<
 
@@ -54,4 +51,3 @@ symmtsp.o: symmtsp.c symmtsp.h $(PDEPS)
 symmtsp-shd.o: symmtsp-shd.c symmtsp.h $(PDEPS) $(IDIR)/shd.h $(SDEPS)
 symmtsp-ils.o: symmtsp-ils.c symmtsp.h $(PDEPS) $(IDIR)/ils.h $(SDEPS)
 symmtsp-sga.o: symmtsp-sga.c symmtsp.h $(PDEPS) $(IDIR)/sga.h $(SDEPS)
-symmtsp-test.o: symmtsp-test.c symmtsp.h $(PDEPS) $(IDIR)/sga.h $(SDEPS)
