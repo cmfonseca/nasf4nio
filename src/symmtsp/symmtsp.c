@@ -72,7 +72,7 @@ static void swap(int *data, int i, int j) {
     data[j] = el;
 }
 
-static int *reversal(int *data, struct move *v, int n){
+static int *reversal(int *data, const struct move *v, int n){
 	int nSteps, i;
 	if(v->data[0] < v->data[1]){
 		nSteps = (v->data[1] - v->data[0]) / 2;
@@ -462,6 +462,7 @@ struct segment *initSegment(struct segment *seg, const struct solution *s1, cons
 int findSuitableBreakPoint(struct segment *seg, int bp){
 	int elemAtBp, biggerAdjPos, smallerAdjPos , n = seg->n;
 
+	// Check element right to the breakpoint
 	elemAtBp = seg->data[bp];
 	biggerAdjPos = seg->datai[(elemAtBp + 1) % n];
 	smallerAdjPos = seg->datai[(elemAtBp - 1 + n) % n];
@@ -470,8 +471,20 @@ int findSuitableBreakPoint(struct segment *seg, int bp){
 		return biggerAdjPos;
 	else if(seg->bpAtPosition[smallerAdjPos] )
 		return smallerAdjPos;
-	else
-		return -1;
+
+	// Check element left to the breakpoint
+	elemAtBp = seg->data[(bp - 1 + n) % n];
+	biggerAdjPos = seg->datai[(elemAtBp + 1) % n];
+	smallerAdjPos = seg->datai[(elemAtBp - 1 + n) % n];
+
+	printSegment(seg);
+
+	if(seg->bpAtPosition[(biggerAdjPos + 1) % n])
+		return (biggerAdjPos + 1) % n;
+	if(seg->bpAtPosition[(smallerAdjPos + 1) % n])
+		return (smallerAdjPos + 1) % n;
+
+	return -1;
 }
 
 /*
@@ -486,31 +499,28 @@ int findSuitableBreakPoint(struct segment *seg, int bp){
  * one breakpoint.
  */
 struct move *randomMoveTowards(struct move *v, struct segment *seg){
-	int r,bp1,bp2, n = seg->n, numBpCopy = seg->numBp;
-	int *breakPointsCopy = malloc(sizeof(int) * seg->numBp);
-	memcpy(breakPointsCopy ,seg->breakPoints, seg->numBp * sizeof(int));
+	int r,bp1,bp2, numBpCopy = seg->numBp;
 
 	if(seg->numBp == 0)
 		return NULL;
 
-
 	while(numBpCopy){
 		r = randint(numBpCopy - 1);
-		bp1 = breakPointsCopy[r];
+		bp1 = seg->breakPoints[r];
 		bp2 = findSuitableBreakPoint(seg, bp1);
 		if(bp2 != -1){
 			v->data[0] = bp1;
 			v->data[1] = bp2;
-			free(breakPointsCopy);
 			return v;
 		}
-		swap(breakPointsCopy, r, --numBpCopy);
+		numBpCopy--;
+		swap(seg->breakPoints, r, numBpCopy);
+		swap(seg->breakPointsi, bp1, seg->breakPoints[r]);
 	}
 	// If non was found pick 2 randomly
 	r = randint(seg->numBp - 1);
 	v->data[0] = seg->breakPoints[r];
 	v->data[1] = seg->breakPoints[ (r + 1 + randint(seg->numBp - 2)) % seg->numBp ];
-	free(breakPointsCopy);
 	return v;
 }
 
@@ -562,4 +572,42 @@ double *getObjectiveIncrement(double *obji, struct move *v, struct solution *s){
 	return obji;
 }
 
+
+void test(){
+	int i, num_it;
+	struct segment *seg;
+	struct move *m;
+	struct solution *s1,*s2;
+	struct problem *p = malloc(sizeof(struct problem));
+
+	p->n = 6;
+	s1 = allocSolution(p);
+	s2 = allocSolution(p);
+	seg = allocSegment(p);
+	m = allocMove(p);
+
+	for(i = 0; i < 100; ++i){
+		randomSolution(s1);
+		randomSolution(s2);
+		initSegment(seg, s1, s2);
+		num_it = 0;
+		while(getLength(seg)>0){
+			randomMoveTowards(m, seg);
+			applyMoveToSegment(seg, m);
+			applyMove(s1,m);
+			num_it++;
+		}
+		//printSegment(seg);
+		//printSolution(s1);
+		//printSolution(s2);
+//		if(equalSolutions(s1,s2) == 1)
+//			printf("Equal solutions num it=%d\n\n", num_it);
+//		else
+//			printf("Not equal solutions\n\n\n\n");
+	}
+
+
+
+
+}
 
