@@ -34,7 +34,6 @@ struct segment {
     int *datai;			/* inverse of difference */
 	int *breakPoints;	/* array which holds position of active break points */
     int *breakPointsi;	/* inverse of breakPoints */
-	int *bpAtPosition;  /* is there break point at given position */
     int numBp;          /* number of active break points */
 };
 
@@ -177,7 +176,6 @@ struct segment *allocSegment(struct problem *p){
 	seg->datai = malloc(sizeof(int) * p->n);
 	seg->breakPoints = malloc(sizeof(int) * p->n);
 	seg->breakPointsi = malloc(sizeof(int) * p->n);
-	seg->bpAtPosition = malloc(sizeof(int) * p->n);
 	seg->numBp = 0;
 	seg->n = p->n;
 	return seg;
@@ -207,7 +205,6 @@ void freeSegment(struct segment *seg){
 	free(seg->datai);
 	free(seg->breakPoints);
 	free(seg->breakPointsi);
-	free(seg->bpAtPosition);
 	free(seg);
 }
 
@@ -265,6 +262,7 @@ void printSegment(struct segment *seg){
 		printf("%d ", seg->breakPoints[i]);
 	printf("\n-----------------------------\n");
 }
+
 
 /***********************/
 /* Solution generation */
@@ -428,10 +426,8 @@ struct segment *initSegment(struct segment *seg, const struct solution *s1, cons
 	diff =  abs( seg->data[0] - seg->data[n - 1] );
 	if(diff != 1 && diff != (n - 1) ){
 		seg->breakPoints[seg->numBp++] = 0;
-		seg->bpAtPosition[0] = 1;
 		seg->breakPointsi[0] = 0;
 	}else{
-		seg->bpAtPosition[0] = 0;
 		seg->breakPointsi[0] = -1;
 	}
 
@@ -439,12 +435,10 @@ struct segment *initSegment(struct segment *seg, const struct solution *s1, cons
 		diff = abs( seg->data[i] - seg->data[i - 1] );
 		if( diff != 1 && diff != (n - 1) ){
 			seg->breakPoints[seg->numBp] = i;
-			seg->bpAtPosition[i] = 1;
 			seg->breakPointsi[i] = seg->numBp;
 			seg->numBp ++;
 		}
 		else{
-			seg->bpAtPosition[i] = 0;
 			seg->breakPointsi[i] = -1;
 		}
 	}
@@ -467,9 +461,9 @@ int findSuitableBreakPoint(struct segment *seg, int bp){
 	biggerAdjPos = seg->datai[(elemAtBp + 1) % n];
 	smallerAdjPos = seg->datai[(elemAtBp - 1 + n) % n];
 
-	if(seg->bpAtPosition[biggerAdjPos] )
+	if(seg->breakPointsi[biggerAdjPos] != -1)
 		return biggerAdjPos;
-	else if(seg->bpAtPosition[smallerAdjPos] )
+	else if(seg->breakPointsi[smallerAdjPos] != -1)
 		return smallerAdjPos;
 
 	// Check element left to the breakpoint
@@ -477,11 +471,10 @@ int findSuitableBreakPoint(struct segment *seg, int bp){
 	biggerAdjPos = seg->datai[(elemAtBp + 1) % n];
 	smallerAdjPos = seg->datai[(elemAtBp - 1 + n) % n];
 
-	printSegment(seg);
 
-	if(seg->bpAtPosition[(biggerAdjPos + 1) % n])
+	if(seg->breakPointsi[(biggerAdjPos + 1) % n] != -1)
 		return (biggerAdjPos + 1) % n;
-	if(seg->bpAtPosition[(smallerAdjPos + 1) % n])
+	if(seg->breakPointsi[(smallerAdjPos + 1) % n] != -1)
 		return (smallerAdjPos + 1) % n;
 
 	return -1;
@@ -537,14 +530,13 @@ struct segment *applyMoveToSegment(struct segment *seg, const struct move *v){
 
 		diff = abs(seg->data[i] - seg->data[j]);
 		if( diff == 1 || diff == (n - 1) ){ // If elements are adjacent
-			if( seg->bpAtPosition[j] ){  	// And there is leftover breakpoint in between them, remove breakpoint
-				seg->bpAtPosition[j] = 0;
-				seg->breakPointsi[seg->breakPoints[seg->numBp - 1]] = seg->breakPointsi[j];
-				swap(seg->breakPoints, seg->breakPointsi[j], --seg->numBp);
+			if( seg->breakPointsi[j] != -1 ){  	// And there is leftover breakpoint in between them, remove breakpoint
+				seg->numBp --;
+				seg->breakPointsi[seg->breakPoints[seg->numBp]] = seg->breakPointsi[j];
+				swap(seg->breakPoints, seg->breakPointsi[j], seg->numBp);
 				seg->breakPointsi[j] = -1;
 			}
-		}else if( seg->bpAtPosition[j] == 0 ){ // Else if elements are not adjacent and there is no breakpoint between them, place a breakpoint.
-				seg->bpAtPosition[j] = 1;
+		}else if( seg->breakPointsi[j] == -1 ){ // Else if elements are not adjacent and there is no breakpoint between them, place a breakpoint.
 				seg->breakPoints[seg->numBp] = j;
 				seg->breakPointsi[j] = seg->numBp;
 				seg->numBp ++;
@@ -572,42 +564,4 @@ double *getObjectiveIncrement(double *obji, struct move *v, struct solution *s){
 	return obji;
 }
 
-
-void test(){
-	int i, num_it;
-	struct segment *seg;
-	struct move *m;
-	struct solution *s1,*s2;
-	struct problem *p = malloc(sizeof(struct problem));
-
-	p->n = 6;
-	s1 = allocSolution(p);
-	s2 = allocSolution(p);
-	seg = allocSegment(p);
-	m = allocMove(p);
-
-	for(i = 0; i < 100; ++i){
-		randomSolution(s1);
-		randomSolution(s2);
-		initSegment(seg, s1, s2);
-		num_it = 0;
-		while(getLength(seg)>0){
-			randomMoveTowards(m, seg);
-			applyMoveToSegment(seg, m);
-			applyMove(s1,m);
-			num_it++;
-		}
-		//printSegment(seg);
-		//printSolution(s1);
-		//printSolution(s2);
-//		if(equalSolutions(s1,s2) == 1)
-//			printf("Equal solutions num it=%d\n\n", num_it);
-//		else
-//			printf("Not equal solutions\n\n\n\n");
-	}
-
-
-
-
-}
 
