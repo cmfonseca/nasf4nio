@@ -35,6 +35,7 @@ struct segment {
 	int *breakPoints;	/* array which holds position of active break points */
     int *breakPointsi;	/* inverse of breakPoints */
     int numBp;          /* number of active break points */
+    int *s2_datai; 		/* array which holds inverse of solution s2 inverse used in initSegment */
 };
 
 
@@ -176,6 +177,7 @@ struct segment *allocSegment(struct problem *p){
 	seg->datai = malloc(sizeof(int) * p->n);
 	seg->breakPoints = malloc(sizeof(int) * p->n);
 	seg->breakPointsi = malloc(sizeof(int) * p->n);
+	seg->s2_datai = malloc(sizeof(int) * p->n);
 	seg->numBp = 0;
 	seg->n = p->n;
 	return seg;
@@ -205,6 +207,7 @@ void freeSegment(struct segment *seg){
 	free(seg->datai);
 	free(seg->breakPoints);
 	free(seg->breakPointsi);
+	free(seg->s2_datai);
 	free(seg);
 }
 
@@ -410,14 +413,12 @@ struct solution *setObjValue(double objv, struct solution *s){
 
 struct segment *initSegment(struct segment *seg, const struct solution *s1, const struct solution *s2){
 	int i,n = s1->n, diff;
-	int *s2_datainverse;
 
-	s2_datainverse = malloc(sizeof(int) * n);
 	for(i = 0; i < n; ++i)
-		s2_datainverse[s2->data[i]] = i;
+		seg->s2_datai[s2->data[i]] = i;
 
 	for(i = 0; i < n; ++i){
-		seg->data[i] = s2_datainverse[s1->data[i]];
+		seg->data[i] = seg->s2_datai[s1->data[i]];
 		seg->datai[seg->data[i]] = i;
 	}
 
@@ -442,7 +443,6 @@ struct segment *initSegment(struct segment *seg, const struct solution *s1, cons
 			seg->breakPointsi[i] = -1;
 		}
 	}
-	free(s2_datainverse);
 	return seg;
 }
 
@@ -471,7 +471,6 @@ int findSuitableBreakPoint(struct segment *seg, int bp){
 	biggerAdjPos = seg->datai[(elemAtBp + 1) % n];
 	smallerAdjPos = seg->datai[(elemAtBp - 1 + n) % n];
 
-
 	if(seg->breakPointsi[(biggerAdjPos + 1) % n] != -1)
 		return (biggerAdjPos + 1) % n;
 	if(seg->breakPointsi[(smallerAdjPos + 1) % n] != -1)
@@ -484,15 +483,15 @@ int findSuitableBreakPoint(struct segment *seg, int bp){
  * Function randomly chooses breakpoints from the set of active breakpoints
  * and tries to find second suitable breakpoint which is also from the set of
  * active breakpoints.
- * If no suitable breakpoint is found, two randomly chosen breakpoints are set
- * for a move.
+ * If no suitable breakpoint is found two random breakpoints are chosen such
+ * that there is no other breakpoint between them.
  *
  * Two breakpoints are suitable for a move if elements at those breakpoints are
  * adjacent. If they are, applying reversal will lead to reduction of at least
  * one breakpoint.
  */
 struct move *randomMoveTowards(struct move *v, struct segment *seg){
-	int r,bp1,bp2, numBpCopy = seg->numBp;
+	int r,bp1,bp2, numBpCopy = seg->numBp, n = seg->n;
 
 	if(seg->numBp == 0)
 		return NULL;
@@ -510,12 +509,17 @@ struct move *randomMoveTowards(struct move *v, struct segment *seg){
 		swap(seg->breakPoints, r, numBpCopy);
 		swap(seg->breakPointsi, bp1, seg->breakPoints[r]);
 	}
-	// If non was found pick 2 randomly
+
 	r = randint(seg->numBp - 1);
-	v->data[0] = seg->breakPoints[r];
-	v->data[1] = seg->breakPoints[ (r + 1 + randint(seg->numBp - 2)) % seg->numBp ];
+	bp1 = seg->breakPoints[r];
+	for( bp2 = bp1 + 2;; ++bp2)
+		if( seg->breakPointsi[bp2 % n] != -1 )
+			break;
+	v->data[0] = bp1;
+	v->data[1] = bp2 % n;
 	return v;
 }
+
 
 
 struct segment *applyMoveToSegment(struct segment *seg, const struct move *v){
@@ -563,5 +567,3 @@ double *getObjectiveIncrement(double *obji, struct move *v, struct solution *s){
 		    + s->prob->distances[c2 * s->n + c1n] + s->prob->distances[c1 * s->n + c2n];
 	return obji;
 }
-
-
