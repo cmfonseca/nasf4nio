@@ -56,8 +56,3 @@ int main(int argc, char **argv) {
     gsl_rng_free(rng);
     return 0;
 }
-
-
-
-
-
