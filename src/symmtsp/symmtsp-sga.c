@@ -15,7 +15,7 @@ int main(int argc, char **argv) {
     double cost, mincost;
     char *filename;
 
-    if (argc < 4) {
+   if (argc < 4) {
         fprintf(stderr, "Usage: %s <board size> <pop size> <max iter>\n", argv[0]);
         return 0;
     }
